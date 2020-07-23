@@ -2,7 +2,7 @@ const http = require("http");
 
 http
   .createServer((request, response) => {
-    const body = [];
+    let body = [];
     request
       .on("error", (err) => {
         console.error(err);
