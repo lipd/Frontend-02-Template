@@ -1,6 +1,4 @@
 const net = require("net");
-const { opendirSync } = require("fs");
-const { rejects } = require("assert");
 
 class Request {
   constructor(options) {
@@ -31,6 +29,7 @@ class Request {
       if (connection) {
         connection.write(this.toString());
       } else {
+        console.log(this);
         connection = net.createConnection(
           {
             host: this.host,
@@ -45,7 +44,7 @@ class Request {
         console.log(data.toString());
         parser.receive(data.toString());
         if (parser.isFinished) {
-          resolve(parser.respone);
+          resolve(parser.response);
           connection.end();
         }
       });
@@ -59,34 +58,97 @@ class Request {
   toString() {
     return `${this.method} ${this.path} HTTP/1.1\r
 ${Object.keys(this.headers)
-  .map((key) => `${key} ${this.headers[key]}`)
+  .map((key) => `${key}: ${this.headers[key]}`)
   .join("\r\n")}\r
 \r
 ${this.bodyText}`;
   }
 }
 
+// TODO: 改为函数形式的状态机
 class ResponseParser {
-  constructor() {}
+  constructor() {
+    // status line 直到 /r
+    this.WAITING_STATUS_LINE = 0;
+    // 准备接收 /n
+    this.WAITING_STATUS_LINE_END = 1;
+    this.WAITING_HEADER_NAME = 2;
+    // header name 的冒号后面有空格
+    this.WAITING_HEADER_SPACE = 3;
+    this.WAITING_HEADER_VALUE = 4;
+    this.WAITING_HEADER_LINE_END = 5;
+    // header 后面的空行分隔符
+    this.WAITING_HEADER_BLOCK_END = 6;
+    // body 格式不固定，所以没有办法在同一个 ResponseParser 中解决
+    this.WAITING_BODY = 7;
+
+    this.current = this.WAITING_STATUS_LINE;
+    this.statusLine = "";
+    this.headers = {};
+    this.headerName = "";
+    this.headerValue = "";
+    this.bodyParser = null;
+  }
   receive(string) {
     for (let i = 0; i < string.length; i++) {
       this.receiveChar(string.charAt(i));
     }
   }
-  receiveChar(char) {}
+  receiveChar(char) {
+    if (this.current === this.WAITING_STATUS_LINE) {
+      if (char === "\r") {
+        this.current = this.WAITING_STATUS_LINE_END;
+      } else {
+        this.statusLine += char;
+      }
+    } else if (this.current === this.WAITING_STATUS_LINE_END) {
+      if (char === "\n") {
+        this.current = this.WAITING_HEADER_NAME;
+      }
+    } else if (this.current === this.WAITING_HEADER_NAME) {
+      if (char === ":") {
+        this.current = this.WAITING_HEADER_SPACE;
+      } else if (char === "\r") {
+        this.current = this.WAITING_HEADER_BLOCK_END;
+      } else {
+        this.headerName += char;
+      }
+    } else if (this.current === this.WAITING_HEADER_SPACE) {
+      if (char === " ") {
+        this.current = this.WAITING_HEADER_VALUE;
+      }
+    } else if (this.current === this.WAITING_HEADER_VALUE) {
+      if (char === "\r") {
+        this.current = this.WAITING_HEADER_LINE_END;
+        this.headers[this.headerName] = this.headerValue;
+        this.headerName = "";
+        this.headerValue = "";
+      } else {
+        this.headerValue += char;
+      }
+    } else if (this.current === this.WAITING_HEADER_LINE_END) {
+      if (char === "\n") {
+        this.current = this.WAITING_HEADER_NAME;
+      }
+    } else if (this.current === this.WAITING_HEADER_BLOCK_END) {
+      if (char === "\n") {
+        this.current = this.WAITING_BODY;
+      }
+    }
+  }
 }
 
 void (async function () {
   const request = new Request({
-    method: "Post",
+    method: "POST",
     host: "127.0.0.1",
     port: "8080",
-    path: "path",
+    path: "/",
     headers: {
       ["X-Foo2"]: "customed",
     },
     body: {
-      name: "Foo",
+      name: "foo",
     },
   });
 
