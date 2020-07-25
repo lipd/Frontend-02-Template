@@ -1,4 +1,5 @@
 const net = require("net");
+const parser = require("./parser");
 
 class Request {
   constructor(options) {
@@ -29,7 +30,7 @@ class Request {
       if (connection) {
         connection.write(this.toString());
       } else {
-        console.log(this);
+        // console.log(this);
         connection = net.createConnection(
           {
             host: this.host,
@@ -41,7 +42,7 @@ class Request {
         );
       }
       connection.on("data", (data) => {
-        console.log(data.toString());
+        // console.log(data.toString());
         parser.receive(data.toString());
         if (parser.isFinished) {
           resolve(parser.response);
@@ -192,7 +193,7 @@ class TrunkedBodyParser {
       }
     } else if (this.current === this.WAITING_NEW_LINE) {
       if (char === "\r") {
-        this.current === this.WAITING_NEW_LINE_END;
+        this.current = this.WAITING_NEW_LINE_END;
       }
     } else if (this.current === this.WAITING_NEW_LINE_END) {
       if (char === "\n") {
@@ -218,5 +219,7 @@ void (async function () {
 
   const response = await request.send();
 
-  console.log(respone);
+  let dom = parser.parseHTML(response.body);
+
+  // console.log(respone);
 })();

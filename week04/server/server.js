@@ -1,5 +1,16 @@
 const http = require("http");
 
+const html = `
+<html at='a'>
+  <body>
+    <div id="root">
+      <h1>Hello World!</h1>
+      <p>This is a Toy Browser~</p>
+    </div>
+  </body>
+</html>
+`;
+
 http
   .createServer((request, response) => {
     let body = [];
@@ -15,7 +26,7 @@ http
         body = Buffer.concat(body).toString();
         console.log("body", body);
         response.writeHead(200, { "Content-Type": "text/html" });
-        response.end("Hello World\n");
+        response.end(html);
       });
   })
   .listen(8080);
