@@ -1,8 +1,12 @@
 let currentToken = null;
 let currentAttribute = null;
 
+let stack = [{ type: "document", children: [] }];
+
 function emit(token) {
+  if (token.type === "text") return;
   console.log(token);
+  let top = stack[stack.length - 1];
 }
 
 const EOF = Symbol("EOF"); // EOF: End of File
